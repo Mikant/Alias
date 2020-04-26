@@ -7,16 +7,39 @@
     </NotAuthorized>
 
     <Authorized>
-        <h3 class="card-title">Слова:</h3>
-
-        <input class="form-control" type="text" @bind="words[0]" />
-        <input class="form-control" type="text" @bind="words[1]" />
-        <input class="form-control" type="text" @bind="words[2]" />
-        <input class="form-control" type="text" @bind="words[3]" />
-        <input class="form-control" type="text" @bind="words[4]" />
-
-        <button class="btn btn-primary" @onclick="SaveWords">
-            Сохранить
-        </button>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Слова</th>
+                    <th>Участники</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <input class="form-control" type="text" @bind="words[0]" />
+                        <input class="form-control" type="text" @bind="words[1]" />
+                        <input class="form-control" type="text" @bind="words[2]" />
+                        <input class="form-control" type="text" @bind="words[3]" />
+                        <input class="form-control" type="text" @bind="words[4]" />
+                    </td>
+                    <td>
+                        <ul>
+                            @foreach (var player in Players) {
+                                <li>@player</li>
+                            }
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <button class="btn btn-primary" @onclick="SaveWords">
+                            Сохранить
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </Authorized>
+
 </AuthorizeView>

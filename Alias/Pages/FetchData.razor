@@ -23,8 +23,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var forecast in forecasts)
-            {
+            @foreach (var forecast in forecasts) {
                 <tr>
                     <td>@forecast.Date.ToShortDateString()</td>
                     <td>@forecast.TemperatureC</td>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -16,6 +17,8 @@ namespace Alias.Pages {
         public virtual NavigationManager NavigationManager { get; set; }
 
         private readonly string[] words = new string[5];
+
+        public List<string> Players { get; } = new List<string>();
 
         protected override async Task OnInitializedAsync() {
             var words = await GetWords() ?? new string[this.words.Length];

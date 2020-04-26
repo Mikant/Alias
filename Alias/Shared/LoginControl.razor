@@ -11,8 +11,7 @@
         </Authorized>
         <NotAuthorized>
             <input type="text" placeholder="Введите имя" @bind="@username" @onkeyup="processEnter" />
-            <a class="ml-md-auto btn btn-primary" role="button" type="submit" @onclick="login" target="_top">Войти</a>
-            <a class="ml-md-auto btn btn-primary" role="button" type="submit" href="/login?username=@encode(@username)" target="_top">Войти</a>
+            <a class="ml-md-auto btn btn-primary active" type="submit" @onclick="login">Войти</a>
         </NotAuthorized>
     </AuthorizeView>
 
@@ -29,6 +28,9 @@
     }
 
     private void login() {
-        navMan.NavigateTo($"login?username={HttpUtility.UrlEncode(username)}");
+        if (string.IsNullOrWhiteSpace(username))
+            return;
+
+        navMan.NavigateTo($"/login?username={HttpUtility.UrlEncode(username)}", true);
     }
 }

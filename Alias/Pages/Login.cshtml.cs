@@ -17,10 +17,6 @@ namespace Alias.Pages {
     public class LoginModel : PageModel {
         private readonly IServiceProvider _provider;
 
-        public string ReturnUrl { get; set; }
-        [Parameter]
-        public string UserName { get; set; }
-
         public LoginModel(IServiceProvider provider) {
             _provider = provider;
         }
