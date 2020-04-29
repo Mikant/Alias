@@ -1,0 +1,167 @@
+﻿@page "/"
+@page "/{sessionId}"
+
+@inherits ActivatableViewBase<IndexViewModel>
+
+@if (!ViewModel.IsInitialized) {
+  <div class="text-center">
+    <p>Загрузка...</p>
+  </div>
+
+} else if (!ViewModel.IsLoggedIn) {
+  <header>
+    <EditForm class="form-inline" Model="ViewModel" OnValidSubmit="ViewModel.Login">
+      <div class="form-group mr-2">
+        <InputText class="form-control" placeholder="Введите имя" @bind-Value="ViewModel.Username" />
+      </div>
+      <div class="form-group mr-2">
+        <input type="submit" class="btn btn-primary" value="Войти" />
+      </div>
+    </EditForm>
+  </header>
+
+  <p>Вы не авторизованы. Введите имя в поле выше и нажмите "Войти"</p>
+
+} else if (!ViewModel.Player.Session.IsRunning) {
+
+  <header>
+    <EditForm class="form-inline row ml-1" Model="ViewModel" OnValidSubmit="ViewModel.Logout">
+      <div class="form-group row ml-1">
+        <b>Привет, @ViewModel.Username!</b>
+      </div>
+      <div class="form-group ml-auto mr-3">
+        <input type="submit" class="btn btn-light" value="Выйти" />
+      </div>
+    </EditForm>
+  </header>
+
+  <hr />
+
+  <div class="container">
+    <div class="row">
+      <div class="col-sm">
+        <b>Слова</b>
+        <hr />
+        <form>
+          @for (int i = 0; i < ViewModel.Words.Count; i++) {
+            var ii = i;
+
+            <div class="form-group">
+              @*<label for="@("wordInput" + ii)">Слово #@(ii + 1)</label>*@
+              <input type="text" class="form-control" id="@("wordInput" + ii)" placeholder="Введите слово" @bind="ViewModel.Words[ii]">
+            </div>
+
+          }
+        </form>
+      </div>
+      <div class="col-sm">
+        <b>Команда</b>
+        <hr />
+        <form>
+          @{
+            var maxTeams = ViewModel.Player?.Session.MaxTeams ?? 0;
+            for (int i = 0; i < maxTeams; i++) {
+              var ii = i;
+
+              var act = (ViewModel.Player?.Team ?? -1) == i;
+
+              <div class="form-group">
+                <input value="•" type="button" class="btn btn-@GetBootstrapStyleForTeam(i) btn-block @(act ? "active" : string.Empty)" data-toggle="button" aria-pressed="@(act.ToString().ToLower())" autocomplete="off" @onclick="@(e => ViewModel.SetTeam(ii))" />
+              </div>
+            }
+
+            // no auto-highlight
+            <div class="form-group">
+              <input value="наблюдатель" type="button" class="btn btn-@GetBootstrapStyleForTeam(-1) btn-block" data-toggle="button" aria-pressed="false" autocomplete="off" @onclick="@(e => ViewModel.SetTeam(-1))" />
+            </div>
+          }
+        </form>
+      </div>
+      <div class="col-sm">
+        <b>Участники</b>
+        <hr />
+        <form>
+          @foreach (var player in ViewModel.Players) {
+            <div class="form-group">
+              <input type="button" class="btn btn-@GetBootstrapStyleForTeam(player.Content.Team) btn-block" value="@(player.Content.Name)" style="color: @(player.Content.IsGameMaster ? "red" : "black"); font-weight: @(player.Content.Name == ViewModel.Username ? "bold" : "normal");" />
+            </div>
+          }
+        </form>
+      </div>
+    </div>
+  </div>
+
+  @if (ViewModel.Player.IsGameMaster) {
+
+    <hr />
+
+    <div class="container">
+      <div class="row">
+        <div class="col-sm" />
+        <div class="col-sm">
+          <input value="Начать игру" type="button" class="btn btn-success btn-block" @onclick="@(e => ViewModel.Player.Session.Run(default))" />
+        </div>
+        <div class="col-sm" />
+      </div>
+    </div>
+
+  }
+
+} else {
+
+  if ((ViewModel.Player.Session.CurrentRound?.Index ?? 0) > 0) {
+    <h1>Раунд @(ViewModel.Player.Session.CurrentRound.Index)</h1>
+
+    <hr />
+
+    <div class="row justify-content-center">
+      <div class="col-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Отгадано</th>
+              <th scope="col">Пропущено</th>
+            </tr>
+          </thead>
+          <tbody>
+            @{
+              for (int i = 0; i < ViewModel.Teams.Count; i++) {
+                var ii = i;
+
+                <tr class="bg-@GetBootstrapStyleForTeam(ViewModel.Teams[ii].Content.Id)">
+                  <th scope="row">@(ii + 1)</th>
+                  <td>@(ViewModel.Teams[ii].Content.Score.HitCount)</td>
+                  <td>@(ViewModel.Teams[ii].Content.Score.MissCount)</td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr />
+  }
+
+  <div class="container">
+    <div class="row">
+      <div class="col-sm">
+        @if (ViewModel.Player.IsGameMaster) {
+          <input value="Завершить игру" type="button" class="btn btn-warning btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+        }
+      </div>
+
+      <div class="col-sm">
+        <h2>Ожидание</h2>
+      </div>
+
+      <div class="col-sm">
+        @if (ViewModel.Player.IsGameMaster) {
+          <input value="Новый раунд" type="button" class="btn btn-success btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
+        }
+      </div>
+    </div>
+  </div>
+
+}
