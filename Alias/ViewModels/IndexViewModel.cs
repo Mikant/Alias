@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -10,7 +8,6 @@ using System.Threading.Tasks;
 using Alias.Models;
 using Alias.Services;
 using Alias.Tools;
-using DynamicData;
 using DynamicData.Binding;
 using Microsoft.AspNetCore.ProtectedBrowserStorage;
 using ReactiveUI;
@@ -38,9 +35,6 @@ namespace Alias.ViewModels {
 
         public ObservableCollectionExtended<string> Words { get; } = new ObservableCollectionExtended<string>(new string[5]);
 
-        public ReadOnlyObservableCollection<PlayerViewModel> Players { get; }
-        public ReadOnlyObservableCollection<TeamViewModel> Teams { get; }
-
         public Subject<bool> YesNoSignal { get; } = new Subject<bool>();
 
         public IndexViewModel(
@@ -52,40 +46,8 @@ namespace Alias.ViewModels {
 
             Debug.WriteLine($"{nameof(IndexViewModel)} #{m_Index} .ctor");
 
-            var playersProxy = new ObservableCollectionExtended<PlayerViewModel>();
-            Players = new ReadOnlyObservableCollection<PlayerViewModel>(playersProxy);
-
-            var teamsProxy = new ObservableCollectionExtended<TeamViewModel>();
-            Teams = new ReadOnlyObservableCollection<TeamViewModel>(teamsProxy);
-
             this.WhenActivated(context => {
                 Debug.WriteLine($"{nameof(IndexViewModel)} #{m_Index} Activating");
-
-                // leads to spurious attempts to redraw after disposal...
-                //Disposable.Create(playersProxy.Clear)
-                //    .DisposeWith(context);
-                
-                // derived collections
-                void bindDerivedCollection<TModel, TKey, TViewModel>(
-                    Expression<Func<IndexViewModel, IConnectableCache<TModel, TKey>>> accessor,
-                    ObservableCollectionExtended<TViewModel> proxyCollection,
-                    Func<TModel, TViewModel> transform
-                ) {
-                    this.WhenAnyValue(x => x.Player, x => x.Player.Session, accessor, (a, b, c) => a == null || b == null ? null : c) // null propagation
-                        .Do(_ => proxyCollection.Clear())
-                        .Where(x => x != null)
-                        .Select(x => x.Connect()
-                            .Transform(transform)
-                            .Bind(proxyCollection)
-                            .Subscribe()
-                        )
-                        .DisposeMany()
-                        .Subscribe()
-                        .DisposeWith(context);
-                }
-
-                bindDerivedCollection(x => x.Player.Session.Players, playersProxy, x => new PlayerViewModel(x));
-                bindDerivedCollection(x => x.Player.Session.Teams, teamsProxy, x => new TeamViewModel(x));
 
                 // local storage
                 this.WhenAnyValue(x => x.Username)

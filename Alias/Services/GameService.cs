@@ -4,6 +4,7 @@ using Alias.Models;
 using DynamicData;
 using DynamicData.Kernel;
 using DynamicData.Aggregation;
+using DynamicData.Binding;
 
 namespace Alias.Services {
     public class GameService {
@@ -13,8 +14,8 @@ namespace Alias.Services {
             _sessions
                 .Connect()
                 .SubscribeMany(x => x.Players
-                    //.CountChanged // bugged
-                    .Connect().Count()
+                    .ToObservableChangeSet()
+                    .Count()
                     .Do(count => {
                         if (count == 0)
                             _sessions.Remove(x);

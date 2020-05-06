@@ -1,14 +1,14 @@
-﻿using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Threading.Tasks;
-using Alias.ViewModels;
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Reactive;
-using Alias.Models;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using Alias.Tools;
+using Alias.ViewModels;
 using DynamicData;
 using DynamicData.Binding;
 using Microsoft.AspNetCore.Components;
@@ -35,33 +35,43 @@ namespace Alias.Views {
             this.WhenActivated(context => {
                 Debug.WriteLine($"{nameof(Index)} #{m_Index} Activating");
 
-                static IObservable<Unit> subscribeDerivedCollection<T, U>(ReadOnlyObservableCollection<T> collection)
-                    where T : ItemViewModelBase<U>
-                    where U : INotifyPropertyChanged =>
+                static IObservable<Unit> subscribeToCollectionChanges<T>(ReadOnlyObservableCollection<T> collection)
+                    where T : INotifyPropertyChanged =>
                     Observable.Merge(
                         collection.ObserveCollectionChanges().AsUnit(),
-                        collection.ToObservableChangeSet().WhenAnyPropertyChanged().AsUnit(),
-                        collection.ToObservableChangeSet().MergeMany(v => v.Content.WhenAnyPropertyChanged()).AsUnit()
+                        collection.ToObservableChangeSet().WhenAnyPropertyChanged().AsUnit()
                     );
 
                 Observable.Merge(
-                    subscribeDerivedCollection<PlayerViewModel, Player>(ViewModel.Players),
-                    subscribeDerivedCollection<TeamViewModel, Team>(ViewModel.Teams),
-                    ViewModel.WhenAnyValue(x => x.Player)
-                        .Select(x => x == null ? Observable.Return(Unit.Default) :
+                    ViewModel.WhenAnyValue(c => c.Player)
+                        .Select(c => c == null ? Observable.Return(Unit.Default) :
                             Observable.Merge(
-                                x.WhenAnyValue(v => v.IsGameMaster).AsUnit(),
-                                x.WhenAnyValue(v => v.Session)
-                                    .Select(v =>
-                                        Observable.Merge(
-                                            v.WhenAnyValue(i => i.MaxTeams).AsUnit(),
-                                            v.WhenAnyValue(i => i.IsRunning).AsUnit()
-                                        )
-                                    ).Switch()
-                            )
-                        ).Switch()
+                                subscribeToCollectionChanges(c.Session.Players),
+                                subscribeToCollectionChanges(c.Session.Teams),
+                                c.WhenAnyValue(o => o.IsGameMaster).AsUnit(),
+                                c.WhenAnyValue(o => o.Session).Select(o => Observable.Merge(
+                                    o.WhenAnyValue(v => v.MaxTeams).AsUnit(),
+                                    o.WhenAnyValue(v => v.CurrentRound)
+                                        .Select(v => v == null ? Observable.Return(Unit.Default) : Observable.Merge(
+                                            v.WhenAnyValue(i => i.CurrentRun)
+                                                .Select(i => i == null ? Observable.Return(Unit.Default) : Observable.Merge(
+                                                    i.WhenAnyValue(d => d.Score.HitCount).AsUnit(),
+                                                    i.WhenAnyValue(d => d.Score.MissCount).AsUnit(),
+                                                    i.WhenAnyValue(d => d.Word).AsUnit()
+                                                )).Switch()
+                                        )).Switch()
+                                )).Switch()
+                        )).Switch()
                     )
                     //.Throttle(TimeSpan.FromSeconds(0.1), Scheduler.CurrentThread) // this is handled by default
+                    .Do(_ => InvokeAsync(StateHasChanged))
+                    .Subscribe()
+                    .DisposeWith(context);
+
+                // a timer for the timer
+                ViewModel.WhenAnyValue(c => c.Player.Session.CurrentRound.CurrentRun.IsRunning)
+                    .Select(x => !x ? Observable.Return(Unit.Default) : Observable.Timer(TimeSpan.Zero, TimeSpan.FromSeconds(0.5)).AsUnit())
+                    .Switch()
                     .Do(_ => InvokeAsync(StateHasChanged))
                     .Subscribe()
                     .DisposeWith(context);

@@ -1,4 +1,6 @@
 ﻿using System.Linq;
+using System.Reactive;
+using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
 using ReactiveUI;
@@ -9,14 +11,22 @@ namespace Alias.Models {
     public class Round : ReactiveObject {
         private readonly Session _session;
 
-        public Round(Session session) {
+        public int Index { get; }
+
+        public Round(Session session, int index) {
             Requires.NotNull(session, nameof(session));
 
             _session = session;
+
+            Index = index;
         }
 
-        public async Task Run(CancellationToken token) {
+        public async Task<bool> Run(CancellationToken token) {
             var roundCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token);
+
+            var start = await _session.GameMaster.YesNoInteraction.Handle(Unit.Default).ToTask(roundCancellationTokenSource.Token);
+            if (!start)
+                return false;
 
             var players = _session.PlayersOrdered;
             var words = _session.SourceWords.ToList();
@@ -39,6 +49,8 @@ namespace Alias.Models {
             } finally {
                 CurrentRun = null;
             }
+
+            return true;
         }
 
         [Reactive]

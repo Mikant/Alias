@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reactive;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
@@ -12,7 +13,11 @@ namespace Alias.Models {
     public class Run : ReactiveObject, IDisposable {
         private static readonly Random Random = new Random();
 
+#if DEBUG
+        public static readonly TimeSpan RoundTime = TimeSpan.FromSeconds(10);
+#else
         public static readonly TimeSpan RoundTime = TimeSpan.FromMinutes(1);
+#endif
         private DateTimeOffset _startTime;
 
         private readonly List<string> _words;
@@ -45,7 +50,7 @@ namespace Alias.Models {
 
             try {
                 while (!_cancellationTokenSource.IsCancellationRequested && _words.Count > 0) {
-                    Word = _words[Random.Next(0, _words.Count)];
+                    Word = PeekRandomWord();
 
                     var accept = await Player.YesNoInteraction.Handle(Unit.Default).ToTask(_cancellationTokenSource.Token);
                     if (accept) {
@@ -56,6 +61,9 @@ namespace Alias.Models {
                         Score.MissCount++;
                     }
                 }
+            } catch (OperationCanceledException) {
+                // ignored
+
             } finally {
                 IsRunning = false;
             }
@@ -77,10 +85,31 @@ namespace Alias.Models {
                 return remaining;
             }
         }
-        
+
         [Reactive]
         public string Word { get; set; }
 
         public Score Score { get; } = new Score();
+
+        private string PeekRandomWord() {
+            Requires.ValidState(_words.Any(), nameof(_words));
+
+            // important. see below
+            if (_words.Count == 1)
+                return _words[0]; 
+
+            var index = Random.Next(0, _words.Count);
+
+            if (_words[index] == Word) {
+                // true way of finding different but still random index
+                var idx = Random.Next(0, _words.Count - 1);
+                if (idx >= index)
+                    idx++;
+
+                index = idx;
+            }
+
+            return _words[index];
+        }
     }
 }

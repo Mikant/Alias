@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive;
@@ -21,9 +22,14 @@ namespace Alias.Models {
         private readonly SourceCache<Player, string> _players = new SourceCache<Player, string>(x => x.Name);
         private readonly SourceCache<Team, int> _teams = new SourceCache<Team, int>(x => x.Id);
 
+        private CancellationTokenSource _gameCancellationTokenSource;
+
         public string Id { get; }
 
-        private CancellationTokenSource _gameCancellationTokenSource;
+        public ReadOnlyObservableCollection<Player> Players { get; }
+        public ReadOnlyObservableCollection<Team> Teams { get; }
+
+        private int _isRunning;
 
         public Session(string id) {
             Requires.NotNullOrWhiteSpace(id, nameof(id));
@@ -36,6 +42,16 @@ namespace Alias.Models {
                 .Count()
                 .Select(x => x / 2)
                 .BindTo(this, x => x.MaxTeams);
+
+            static ReadOnlyObservableCollection<TObject> createView<TObject, TKey>(IConnectableCache<TObject, TKey> source) {
+                source.Connect()
+                    .Bind(out var view)
+                    .Subscribe();
+                return view;
+            }
+
+            Players = createView(_players); ;
+            Teams = createView(_teams); ;
         }
 
         public Player Join(string username) {
@@ -82,52 +98,48 @@ namespace Alias.Models {
         }
 
         public bool CanRun() {
-            lock (_syncRoot) {
-                if (IsRunning)
-                    return false;
+            if (_isRunning != 0)
+                return false;
 
-                var players = _players.Items.ToList();
-                if (players.Count(x => x.IsGameMaster) != 1)
-                    return false;
+            var players = _players.Items.ToList();
+            if (players.Count(x => x.IsGameMaster) != 1)
+                return false;
 
-                var teams = players
-                    .GroupBy(x => x.Team)
-                    .ToList();
-                var activeTeams = teams
-                    .Where(x => x.Key >= 0)
-                    .ToList();
+            var teams = players
+                .GroupBy(x => x.Team)
+                .ToList();
+            var activeTeams = teams
+                .Where(x => x.Key >= 0)
+                .ToList();
 #if DEBUG
 #warning DEBUG
-                return activeTeams.Count() > 0 && activeTeams.All(x => x.Count() > 0);
+            return activeTeams.Count() > 0 && activeTeams.All(x => x.Count() > 0);
 #else
-                return activeTeams.Count() > 1 && activeTeams.All(x => x.Count() > 1);
+            return activeTeams.Count() > 1 && activeTeams.All(x => x.Count() > 1);
 #endif
-            }
         }
 
-        public async Task Run(CancellationToken token) {
+        public async Task Run(CancellationToken token = default) {
+            if (!CanRun())
+                return;
+
+            if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
+                return;
+
             CancellationTokenSource cancellationTokenSource = null;
             try {
-                lock (_syncRoot) {
-                    if (!CanRun())
-                        return;
-                    IsRunning = true;
-                }
-                
                 cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token);
                 _gameCancellationTokenSource = cancellationTokenSource;
 
                 var playersUnordered = _players.Items.ToList();
 
-                var words = new List<string>();
+                var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var client in playersUnordered)
-                    words.AddRange(await client.GetWordsInteraction.Handle(Unit.Default).FirstOrDefaultAsync().ToTask(_gameCancellationTokenSource.Token));
-                words.RemoveAll(string.IsNullOrWhiteSpace);
+                    words.UnionWith(await client.GetWordsInteraction.Handle(Unit.Default).FirstOrDefaultAsync().ToTask(_gameCancellationTokenSource.Token));
+                words.RemoveWhere(string.IsNullOrWhiteSpace);
 
                 if (words.Count == 0)
                     return;
-
-                SourceWords = words;
 
                 _teams.Edit(mutable => {
                     mutable.Clear();
@@ -157,32 +169,28 @@ namespace Alias.Models {
                 }
 
                 GameMaster = playersUnordered.Single(x => x.IsGameMaster);
+                PlayersOrdered = playersOrdered;
+                SourceWords = words.ToList();
 
-                CurrentRoundIndex = 0;
-                while (!cancellationTokenSource.IsCancellationRequested) {
-                    var start = await GameMaster.YesNoInteraction.Handle(Unit.Default).ToTask(cancellationTokenSource.Token);
-                    if (!start)
+                for (int i = 0; !cancellationTokenSource.IsCancellationRequested; i++) {
+                    CurrentRound = new Round(this, i);
+
+                    if (!await CurrentRound.Run(cancellationTokenSource.Token))
                         break;
-
-                    CurrentRoundIndex++;
-
-                    var round = new Round(this);
-                    CurrentRound = round;
-
-                    await round.Run(cancellationTokenSource.Token);
                 }
 
             } finally {
-                cancellationTokenSource?.Cancel();
+                try {
+                    cancellationTokenSource?.Cancel();
 
-                PlayersOrdered = null;
-                GameMaster = null;
-                SourceWords = null;
+                    PlayersOrdered = null;
+                    GameMaster = null;
+                    SourceWords = null;
 
-                IsRunning = false;
-
-                CurrentRound = null;
-                CurrentRoundIndex = 0;
+                    CurrentRound = null;
+                } finally {
+                    Interlocked.Exchange(ref _isRunning, 0);
+                }
             }
         }
 
@@ -197,17 +205,9 @@ namespace Alias.Models {
         public int MaxTeams { get; private set; }
 
         [Reactive]
-        public int CurrentRoundIndex { get; private set; }
-        [Reactive]
         public Round CurrentRound { get; private set; }
 
-        public IConnectableCache<Player, string> Players => _players;
-        public IConnectableCache<Team, int> Teams => _teams;
-
         public Team LookupTeam(int id) => _teams.Lookup(id).ValueOrDefault();
-
-        [Reactive]
-        public bool IsRunning { get; private set; }
 
         public void Dispose() {
             Debug.WriteLine($"{nameof(Session)} #{Id}: Disposing");
