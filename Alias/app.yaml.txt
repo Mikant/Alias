@@ -1,0 +1,3 @@
+﻿in order to support publishing to google cloud via azure pipelines the following hacks were performed:
+app.yaml, dockerfile, .dockerignore and wwwroot resources were tagged with "copy to output directory"
+.dockerignore intentionally ignores dev files & folders

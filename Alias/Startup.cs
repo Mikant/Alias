@@ -37,9 +37,6 @@ namespace Alias {
 
             app.UseRouting();
 
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-
             app.UseEndpoints(endpoints => {
                 endpoints.MapBlazorHub();
                 endpoints.MapFallbackToPage("/_Host");
