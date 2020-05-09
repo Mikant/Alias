@@ -1,2 +1,3 @@
 ﻿*.dev.json
-/Properties
+*.Development.json
+/Properties/launchSettings.json
