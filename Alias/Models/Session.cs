@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
@@ -30,6 +31,8 @@ namespace Alias.Models {
         public ReadOnlyObservableCollection<Team> Teams { get; }
 
         private int _isRunning;
+
+        public DateTimeOffset LastRunTime { get; private set; } = DateTimeOffset.Now;
 
         public Session(string id) {
             Requires.NotNullOrWhiteSpace(id, nameof(id));
@@ -94,6 +97,9 @@ namespace Alias.Models {
 
                 if (existing.Value.IsGameMaster && _players.Count > 0)
                     _players.Items.First().IsGameMaster = true;
+
+                if (_isRunning == 1 && !Team.IsSpectator(existing.Value))
+                    Cancel();
             }
         }
 
@@ -101,7 +107,10 @@ namespace Alias.Models {
             if (_isRunning != 0)
                 return false;
 
-            var players = _players.Items.ToList();
+            var players = _players.Items
+                .Where(x => x.IsConnected)
+                .ToList();
+
             if (players.Count(x => x.IsGameMaster) != 1)
                 return false;
 
@@ -125,13 +134,18 @@ namespace Alias.Models {
 
             if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
                 return;
+            using var _ = Disposable.Create(() => Interlocked.Exchange(ref _isRunning, 0));
+
+            LastRunTime = DateTimeOffset.Now;
 
             CancellationTokenSource cancellationTokenSource = null;
             try {
                 cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token);
                 _gameCancellationTokenSource = cancellationTokenSource;
 
-                var playersUnordered = _players.Items.ToList();
+                var playersUnordered = _players.Items
+                    .Where(Team.IsActive)
+                    .ToList();
 
                 var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var client in playersUnordered)
@@ -144,7 +158,7 @@ namespace Alias.Models {
                 _teams.Edit(mutable => {
                     mutable.Clear();
                     mutable.AddOrUpdate(
-                        _players.Items
+                        playersUnordered
                             .Select(x => x.Team)
                             .Distinct()
                             .Select(x => new Team(x))
@@ -180,17 +194,13 @@ namespace Alias.Models {
                 }
 
             } finally {
-                try {
-                    cancellationTokenSource?.Cancel();
+                cancellationTokenSource?.Cancel();
 
-                    PlayersOrdered = null;
-                    GameMaster = null;
-                    SourceWords = null;
+                PlayersOrdered = null;
+                GameMaster = null;
+                SourceWords = null;
 
-                    CurrentRound = null;
-                } finally {
-                    Interlocked.Exchange(ref _isRunning, 0);
-                }
+                CurrentRound = null;
             }
         }
 
@@ -209,10 +219,16 @@ namespace Alias.Models {
 
         public Team LookupTeam(int id) => _teams.Lookup(id).ValueOrDefault();
 
+        public void Cancel() {
+            _gameCancellationTokenSource?.Dispose();
+            _gameCancellationTokenSource = null;
+        }
+
         public void Dispose() {
             Debug.WriteLine($"{nameof(Session)} #{Id}: Disposing");
 
-            _gameCancellationTokenSource?.Dispose();
+            Cancel();
+
             _players?.Dispose();
             _teams?.Dispose();
         }

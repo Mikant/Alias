@@ -74,6 +74,12 @@ namespace Alias.ViewModels {
                     .DisposeWith(context);
 
                 this.WhenAnyValue(x => x.Player)
+                    .Select(x => x != null ? x.GetConnectionToken() : Disposable.Empty)
+                    .DisposeMany()
+                    .Subscribe()
+                    .DisposeWith(context);
+
+                this.WhenAnyValue(x => x.Player)
                     .Where(x => x != null)
                     .Select(x => {
                         return new CompositeDisposable(
@@ -145,6 +151,14 @@ namespace Alias.ViewModels {
         public void SetTeam(int team) {
             if (Player != null)
                 Player.Team = team;
+        }
+
+        public void DelegateAdminRights(Player player) {
+            if (Player == player || !Player.IsGameMaster)
+                return;
+
+            player.IsGameMaster = true;
+            Player.IsGameMaster = false;
         }
     }
 }

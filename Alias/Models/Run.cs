@@ -14,9 +14,9 @@ namespace Alias.Models {
         private static readonly Random Random = new Random();
 
 #if DEBUG
-        public static readonly TimeSpan RoundTime = TimeSpan.FromSeconds(10);
+        public static readonly TimeSpan RunTime = TimeSpan.FromSeconds(10);
 #else
-        public static readonly TimeSpan RoundTime = TimeSpan.FromMinutes(1);
+        public static readonly TimeSpan RunTime = TimeSpan.FromMinutes(1);
 #endif
         private DateTimeOffset _startTime;
 
@@ -46,7 +46,7 @@ namespace Alias.Models {
 
             IsRunning = true;
             _startTime = DateTimeOffset.Now;
-            _cancellationTokenSource.CancelAfter(RoundTime);
+            _cancellationTokenSource.CancelAfter(RunTime);
 
             try {
                 while (!_cancellationTokenSource.IsCancellationRequested && _words.Count > 0) {
@@ -75,9 +75,9 @@ namespace Alias.Models {
         public TimeSpan TimeRemaining {
             get {
                 if (!IsRunning)
-                    return RoundTime;
+                    return RunTime;
 
-                var remaining = DateTimeOffset.Now - _startTime;
+                var remaining = RunTime - (DateTimeOffset.Now - _startTime);
                 if (remaining.Ticks <= 0) {
                     remaining = TimeSpan.Zero;
                 }
@@ -87,7 +87,7 @@ namespace Alias.Models {
         }
 
         [Reactive]
-        public string Word { get; set; }
+        public string Word { get; private set; }
 
         public Score Score { get; } = new Score();
 
