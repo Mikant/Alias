@@ -4,23 +4,26 @@
 @inherits ActivatableViewBase<IndexViewModel>
 
 @if (!ViewModel.IsInitialized) {
-  <div class="text-center">
-    <p>Загрузка...</p>
+  <div class="row align-items-center h-100">
+    <div class="col">
+      <p class="text-center text-uppercase">Загрузка...</p>
+    </div>
   </div>
 
 } else if (!ViewModel.IsLoggedIn) {
-  <header>
-    <EditForm class="form-inline" Model="ViewModel" OnValidSubmit="ViewModel.Login">
-      <div class="form-group mr-2">
-        <InputText class="form-control" placeholder="Введите имя" @bind-Value="ViewModel.Username" />
-      </div>
-      <div class="form-group mr-2">
-        <input type="submit" class="btn btn-primary" value="Войти" />
-      </div>
-    </EditForm>
-  </header>
-
-  <p>Вы не авторизованы. Введите имя в поле выше и нажмите "Войти"</p>
+  <div class="row align-items-center h-100">
+    <div class="col">
+      <EditForm class="form-inline justify-content-center" Model="ViewModel" OnValidSubmit="ViewModel.Login">
+        <div class="form-group mr-2">
+          <InputText class="form-control" placeholder="Введите имя" @bind-Value="ViewModel.Username" />
+        </div>
+        <div class="form-group mr-2">
+          <input type="submit" class="btn btn-primary" value="Войти" />
+        </div>
+      </EditForm>
+      <p class="text-center">Вы не авторизованы. Введите имя в поле выше и нажмите "Войти"</p>
+    </div>
+  </div>
 
 } else if (ViewModel.Player.Session.CurrentRound == null) {
 
@@ -30,6 +33,7 @@
         <b>Привет, @ViewModel.Username!</b>
       </div>
       <div class="form-group ml-auto mr-3">
+        <a class="github-button mr-3" href="https://github.com/Mikant/Alias" data-size="large" data-show-count="true" aria-label="Star Mikant/Alias on GitHub" target="_blank">Star</a>
         <input type="submit" class="btn btn-light" value="Выйти" />
       </div>
     </EditForm>
@@ -83,7 +87,11 @@
         <form>
           @foreach (var player in ViewModel.Player.Session.Players) {
             <div class="form-group">
-              <input type="button" class="btn btn-@GetBootstrapStyleForTeam(player.Team) btn-block" value="@(player.Name)" style="color: @(player.IsGameMaster ? "red" : "black"); font-weight: @(player.Name == ViewModel.Username ? "bold" : "normal");" />
+              <input type="button"
+                     class="btn btn-@GetBootstrapStyleForTeam(player.Team) btn-block"
+                     value="@(player.Name)"
+                     style="color: @(player.IsGameMaster ? "red" : "black"); font-weight: @(player.Name == ViewModel.Username ? "bold" : "normal");"
+                     @onclick="@(e => ViewModel.DelegateAdminRights(player))" />
             </div>
           }
         </form>
@@ -91,7 +99,15 @@
     </div>
   </div>
 
+  <hr />
+
+  <p class="text-center">Игроки должны разбиться на команды с равным количеством участников. Игра начнётся по команде ведущего игрока</p>
+
   @if (ViewModel.Player.IsGameMaster) {
+
+    <hr />
+
+    <p class="text-center">Вы - ведущий игрок. Начните игру, когда остальные участники будут готовы. Для назначения другого игрока ведущим, нажмете на его имя.</p>
 
     <hr />
 
@@ -99,7 +115,7 @@
       <div class="row">
         <div class="col-sm" />
         <div class="col-sm">
-          <input value="Начать игру" type="button" class="btn btn-success btn-block" @onclick="@(e => ViewModel.Player.Session.Run(default))" />
+          <input value="Начать игру" type="button" class="btn btn-success btn-block mx-auto m-3" @onclick="@(e => ViewModel.Player.Session.Run(default))" />
         </div>
         <div class="col-sm" />
       </div>
@@ -129,7 +145,10 @@
               </thead>
               <tbody>
                 @{
-                  var teams = ViewModel.Player.Session.Teams;
+                  var teams = ViewModel.Player.Session.Teams
+                    .Where(x => x.Id >= 0) // -spectators
+                    .OrderBy(x => x.Score.HitCount)
+                    .ToList();
 
                   for (int i = 0; i < teams.Count; i++) {
                     var ii = i;
@@ -157,7 +176,10 @@
         </div>
 
         <div class="col-sm">
-          <p class="text-center">ОЖИДАНИЕ</p>
+          <p class="text-center text-uppercase">Ожидание</p>
+          @if (!ViewModel.Player.IsGameMaster) {
+            <p class="text-center text-uppercase">ведущего игрока</p>
+          }
         </div>
 
         <div class="col-sm">
@@ -173,8 +195,25 @@
 
   <div class="row align-items-center h-100">
     <div class="container">
-      <div class="row justify-content-center">
+      <div class="row justify-content-center text-center">
         <div class="col mx-auto">
+          @{
+            var currentRun = ViewModel.Player.Session.CurrentRound.CurrentRun;
+            var currentPlayer = currentRun.Player;
+            if (currentPlayer == ViewModel.Player) {
+              if (!currentRun.IsRunning) {
+                <h2 class="text-center text-uppercase">Ваш ход</h2>
+                <hr />
+              }
+            } else {
+              <p class="text-uppercase">Ходит</p>
+              <input type="button"
+                     class="btn btn-@GetBootstrapStyleForTeam(ViewModel.Player.Session.CurrentRound.CurrentRun.Player.Team) btn-block"
+                     value="@(currentPlayer.Name)" />
+              <hr />
+            }
+          }
+
           <h1 class="text-center">@(ViewModel.Player.Session.CurrentRound.CurrentRun.TimeRemaining.ToString("mm\\:ss"))</h1>
         </div>
       </div>
@@ -192,19 +231,19 @@
         <div class="row">
           <div class="col-sm">
             @if (ViewModel.Player.Session.CurrentRound.CurrentRun.IsRunning) {
-              <input value="ПРОПУСК" type="button" class="btn btn-danger btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+              <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
             }
           </div>
 
           <div class="col-sm">
             @if (!ViewModel.Player.Session.CurrentRound.CurrentRun.IsRunning) {
-              <input value="ГОТОВ" type="button" class="btn btn-warning btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+              <input value="Начать" type="button" class="btn btn-warning btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
             }
           </div>
 
           <div class="col-sm">
             @if (ViewModel.Player.Session.CurrentRound.CurrentRun.IsRunning) {
-              <input value="СЛЕДУЮЩЕЕ" type="button" class="btn btn-success btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
+              <input value="Следующее" type="button" class="btn btn-success btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
             }
           </div>
         </div>

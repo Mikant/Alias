@@ -11,4 +11,6 @@
     <PackageReference Include="Validation" Version="2.4.22" />
   </ItemGroup>
 
+  <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
+
 </Project>

@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using System.Reactive.Linq;
 using Alias.Models;
+using Alias.Tools;
 using DynamicData;
 using DynamicData.Kernel;
 using DynamicData.Aggregation;
@@ -20,9 +22,21 @@ namespace Alias.Services {
                         if (count == 0)
                             _sessions.Remove(x);
                     })
+                    .Finally(() => _sessions.Remove(x))
                     .Subscribe()
                 )
                 .DisposeMany()
+                .Subscribe();
+
+            var gcInterval = TimeSpan.FromHours(1);
+            Observable.Timer(gcInterval, gcInterval)
+                .Do(_ => {
+                    var currentTime = DateTimeOffset.Now;
+                    _sessions.Remove(_sessions.Items
+                        .Where(x => currentTime - x.LastRunTime > gcInterval)
+                        .ToList()
+                    );
+                })
                 .Subscribe();
         }
 
