@@ -12,6 +12,7 @@ using Alias.ViewModels;
 using DynamicData;
 using DynamicData.Binding;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using ReactiveUI;
 
 namespace Alias.Views {
@@ -22,6 +23,9 @@ namespace Alias.Views {
 
         [Inject]
         public NavigationManager NavigationManager { get; set; }
+
+        [Inject]
+        public IJSRuntime JSRuntime { get; set; }
 
         [Inject]
         public IndexViewModel IndexViewModel {
@@ -50,7 +54,8 @@ namespace Alias.Views {
                                 subscribeToCollectionChanges(c.Session.Teams),
                                 c.WhenAnyValue(o => o.IsGameMaster).AsUnit(),
                                 c.WhenAnyValue(o => o.Session).Select(o => Observable.Merge(
-                                    o.WhenAnyValue(v => v.MaxTeams).AsUnit(),
+                                    o.WhenAnyValue(v => v.MaximumTeamCount).AsUnit(),
+                                    o.WhenAnyValue(v => v.MaximumWordCount).AsUnit(),
                                     o.WhenAnyValue(v => v.CurrentRound)
                                         .Select(v => v == null ? Observable.Return(Unit.Default) : Observable.Merge(
                                             v.WhenAnyValue(i => i.CurrentRun)
@@ -86,21 +91,25 @@ namespace Alias.Views {
 
             if (firstRender) {
                 if (string.IsNullOrWhiteSpace(SessionId)) {
-#if !DEBUG
                     var r = new Random();
                     var sb = new StringBuilder();
                     for (int i = 0; i < 5; i++)
                         sb.Append((char)r.Next('a', 'z' + 1));
 
                     SessionId = sb.ToString();
-#else
+#if DEBUG
                     SessionId = "debug";
 #endif
-
                     NavigationManager.NavigateTo($"/{SessionId}");
                 }
 
                 await ViewModel.Initialize(SessionId);
+            } else {
+
+                // hack. blazor rejects to reapply it
+                if (ViewModel.Player?.Session.CurrentRound == null)
+                    await JSRuntime.InvokeVoidAsync("reload_github_buttons");
+
             }
 
             await base.OnAfterRenderAsync(firstRender);

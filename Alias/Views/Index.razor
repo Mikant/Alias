@@ -32,8 +32,10 @@
       <div class="form-group row ml-1">
         <b>Привет, @ViewModel.Username!</b>
       </div>
-      <div class="form-group ml-auto mr-3">
-        <a class="github-button mr-3" href="https://github.com/Mikant/Alias" data-size="large" data-show-count="true" aria-label="Star Mikant/Alias on GitHub" target="_blank">Star</a>
+      <div class="form-group ml-auto row mr-3">
+        <div class="row mt-1 mr-3">
+          <a class="github-button" href="https://github.com/Mikant/Alias" data-size="large" data-show-count="true" aria-label="Star Mikant/Alias on GitHub" target="_blank">Star</a>
+        </div>
         <input type="submit" class="btn btn-light" value="Выйти" />
       </div>
     </EditForm>
@@ -47,15 +49,36 @@
         <b>Слова</b>
         <hr />
         <form>
-          @for (int i = 0; i < ViewModel.Words.Count; i++) {
-            var ii = i;
+          @{
+            var wordCount = ViewModel.Player.Session.MaximumWordCount;
+            var addWords = wordCount - ViewModel.Words.Count;
+            using (ViewModel.Words.SuspendNotifications()) {
+              for (int i = 0; i < addWords; i++)
+                ViewModel.Words.Add(string.Empty);
+            }
 
-            <div class="form-group">
-              @*<label for="@("wordInput" + ii)">Слово #@(ii + 1)</label>*@
-              <input type="text" class="form-control" id="@("wordInput" + ii)" placeholder="Введите слово" @bind="ViewModel.Words[ii]">
-            </div>
+            for (int i = 0; i < wordCount; i++) {
+              var ii = i;
 
+              <div class="form-group">
+                @*<label for="@("wordInput" + ii)">Слово #@(ii + 1)</label>*@
+                <input type="text" class="form-control" id="@("wordInput" + ii)" placeholder="Введите слово" @bind="ViewModel.Words[ii]">
+              </div>
+
+            }
+
+            if (ViewModel.Player.IsGameMaster) {
+              <div class="form-group">
+                <label for="maxWordCountSelect">Количество слов:</label>
+                <select id="maxWordCountSelect" @bind="ViewModel.MaximumWordCountText">
+                  @foreach (var template in Enumerable.Range(3, 10)) {
+                    <option value=@template>@template</option>
+                  }
+                </select>
+              </div>
+            }
           }
+
         </form>
       </div>
       <div class="col-sm">
@@ -63,7 +86,7 @@
         <hr />
         <form>
           @{
-            var maxTeams = ViewModel.Player?.Session.MaxTeams ?? 0;
+            var maxTeams = ViewModel.Player?.Session.MaximumTeamCount ?? 0;
             for (int i = 0; i < maxTeams; i++) {
               var ii = i;
 
@@ -147,7 +170,7 @@
                 @{
                   var teams = ViewModel.Player.Session.Teams
                     .Where(x => x.Id >= 0) // -spectators
-                    .OrderBy(x => x.Score.HitCount)
+                    .OrderByDescending(x => x.Score.HitCount)
                     .ToList();
 
                   for (int i = 0; i < teams.Count; i++) {
@@ -200,7 +223,9 @@
           @{
             var currentRun = ViewModel.Player.Session.CurrentRound.CurrentRun;
             var currentPlayer = currentRun.Player;
-            if (currentPlayer == ViewModel.Player) {
+            var iamCurrent = currentPlayer == ViewModel.Player;
+
+            if (iamCurrent) {
               if (!currentRun.IsRunning) {
                 <h2 class="text-center text-uppercase">Ваш ход</h2>
                 <hr />
@@ -218,35 +243,41 @@
         </div>
       </div>
 
-      @if (ViewModel.Player.Session.CurrentRound.CurrentRun.Player == ViewModel.Player) {
+      @{
+        var iamSpectator = Models.Team.IsSpectator(ViewModel.Player);
 
-        <hr />
+        if (iamCurrent || iamSpectator) {
 
-        <div class="row justify-content-center">
-          <div class="col">
-            <h1 class="text-center">@(ViewModel.Player.Session.CurrentRound.CurrentRun.Word)</h1>
+          <hr />
+
+          <div class="row justify-content-center">
+            <div class="col">
+              <h1 class="text-center">@(currentRun.Word)</h1>
+            </div>
           </div>
-        </div>
+        }
 
-        <div class="row">
-          <div class="col-sm">
-            @if (ViewModel.Player.Session.CurrentRound.CurrentRun.IsRunning) {
-              <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
-            }
-          </div>
+        if (iamCurrent) {
+          <div class="row">
+            <div class="col-sm">
+              @if (currentRun.IsRunning) {
+                <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+              }
+            </div>
 
-          <div class="col-sm">
-            @if (!ViewModel.Player.Session.CurrentRound.CurrentRun.IsRunning) {
-              <input value="Начать" type="button" class="btn btn-warning btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
-            }
-          </div>
+            <div class="col-sm">
+              @if (!currentRun.IsRunning) {
+                <input value="Начать" type="button" class="btn btn-warning btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+              }
+            </div>
 
-          <div class="col-sm">
-            @if (ViewModel.Player.Session.CurrentRound.CurrentRun.IsRunning) {
-              <input value="Следующее" type="button" class="btn btn-success btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
-            }
+            <div class="col-sm">
+              @if (currentRun.IsRunning) {
+                <input value="Следующее" type="button" class="btn btn-success btn-block text-uppercase" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
+              }
+            </div>
           </div>
-        </div>
+        }
       }
 
       <hr />

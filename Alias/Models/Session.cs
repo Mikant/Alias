@@ -44,7 +44,7 @@ namespace Alias.Models {
             _players.Connect()
                 .Count()
                 .Select(x => x / 2)
-                .BindTo(this, x => x.MaxTeams);
+                .BindTo(this, x => x.MaximumTeamCount);
 
             static ReadOnlyObservableCollection<TObject> createView<TObject, TKey>(IConnectableCache<TObject, TKey> source) {
                 source.Connect()
@@ -108,8 +108,10 @@ namespace Alias.Models {
                 return false;
 
             var players = _players.Items
-                .Where(x => x.IsConnected)
                 .ToList();
+
+            if (players.Any(x => !x.IsConnected))
+                return false;
 
             if (players.Count(x => x.IsGameMaster) != 1)
                 return false;
@@ -120,12 +122,11 @@ namespace Alias.Models {
             var activeTeams = teams
                 .Where(x => x.Key >= 0)
                 .ToList();
+
 #if DEBUG
-#warning DEBUG
-            return activeTeams.Count() > 0 && activeTeams.All(x => x.Count() > 0);
-#else
-            return activeTeams.Count() > 1 && activeTeams.All(x => x.Count() > 1);
+            return true;
 #endif
+            return activeTeams.Count > 1 && activeTeams.All(x => x.Count() > 1);
         }
 
         public async Task Run(CancellationToken token = default) {
@@ -212,12 +213,15 @@ namespace Alias.Models {
         public IReadOnlyList<string> SourceWords { get; private set; }
 
         [Reactive]
-        public int MaxTeams { get; private set; }
+        public int MaximumTeamCount { get; private set; }
 
         [Reactive]
         public Round CurrentRound { get; private set; }
 
         public Team LookupTeam(int id) => _teams.Lookup(id).ValueOrDefault();
+
+        [Reactive]
+        public byte MaximumWordCount { get; set; } = 5;
 
         public void Cancel() {
             _gameCancellationTokenSource?.Dispose();
