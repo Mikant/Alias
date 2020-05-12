@@ -33,7 +33,7 @@ namespace Alias.ViewModels {
         [Reactive]
         public bool IsLoggedIn { get; private set; }
 
-        public ObservableCollectionExtended<string> Words { get; } = new ObservableCollectionExtended<string>(new string[5]);
+        public ObservableCollectionExtended<string> Words { get; } = new ObservableCollectionExtended<string>();
 
         public Subject<bool> YesNoSignal { get; } = new Subject<bool>();
 
@@ -45,6 +45,8 @@ namespace Alias.ViewModels {
             _gameService = gameService;
 
             Debug.WriteLine($"{nameof(IndexViewModel)} #{m_Index} .ctor");
+
+            string[] filterWords() => Words.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
 
             this.WhenActivated(context => {
                 Debug.WriteLine($"{nameof(IndexViewModel)} #{m_Index} Activating");
@@ -64,7 +66,7 @@ namespace Alias.ViewModels {
 
                 Words.ObserveCollectionChanges()
                     .Skip(1) // init
-                    .Do(x => _localStorageService.SetAsync(nameof(Words), Words.ToArray()))
+                    .Do(x => _localStorageService.SetAsync(nameof(Words), filterWords()))
                     .Subscribe()
                     .DisposeWith(context);
 
@@ -84,7 +86,7 @@ namespace Alias.ViewModels {
                     .Select(x => {
                         return new CompositeDisposable(
                             x.GetWordsInteraction.RegisterHandler(interactionContext =>
-                                interactionContext.SetOutput(Words.ToArray())
+                                interactionContext.SetOutput(filterWords())
                             ),
                             x.YesNoInteraction.RegisterHandler(async interactionContext => {
                                 interactionContext.SetOutput(await YesNoSignal.FirstAsync().PublishLast());
@@ -111,12 +113,13 @@ namespace Alias.ViewModels {
 
             Username = await GetStoredItemOrResetAsync<string>(nameof(Username));
 
-            var words = await GetStoredItemOrResetAsync<string[]>(nameof(Words));
-            if (words != null) {
-                var count = Math.Min(words.Length, Words.Count);
-                using (Words.SuspendNotifications())
-                    for (int i = 0; i < count; i++)
-                        Words[i] = words[i];
+            using (Words.SuspendNotifications()) {
+                Words.Clear();
+
+                var words = await GetStoredItemOrResetAsync<string[]>(nameof(Words));
+                if (words != null) {
+                    Words.AddRange(words);
+                }
             }
 
             var wasLoggedIn = await GetStoredItemOrResetAsync<bool>(nameof(IsLoggedIn));
@@ -159,6 +162,14 @@ namespace Alias.ViewModels {
 
             player.IsGameMaster = true;
             Player.IsGameMaster = false;
+        }
+
+        public string MaximumWordCountText {
+            get => (Player?.Session.MaximumWordCount ?? 0).ToString();
+            set {
+                if (Player != null && byte.TryParse(value, out var x))
+                    Player.Session.MaximumWordCount = x;
+            }
         }
     }
 }

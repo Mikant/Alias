@@ -13,11 +13,7 @@ namespace Alias.Models {
     public class Run : ReactiveObject, IDisposable {
         private static readonly Random Random = new Random();
 
-#if DEBUG
-        public static readonly TimeSpan RunTime = TimeSpan.FromSeconds(10);
-#else
-        public static readonly TimeSpan RunTime = TimeSpan.FromMinutes(1);
-#endif
+        private static readonly TimeSpan RunTime = TimeSpan.FromMinutes(1);
         private DateTimeOffset _startTime;
 
         private readonly List<string> _words;
@@ -25,6 +21,12 @@ namespace Alias.Models {
         private CancellationTokenSource _cancellationTokenSource;
 
         public Player Player { get; }
+
+#if DEBUG
+        static Run() {
+            RunTime = TimeSpan.FromSeconds(10);
+        }
+#endif
 
         public Run(Player player, List<string> words) {
             Requires.NotNull(player, nameof(player));

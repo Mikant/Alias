@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Reactive.Linq;
 using Alias.Models;
-using Alias.Tools;
 using DynamicData;
 using DynamicData.Kernel;
 using DynamicData.Aggregation;
