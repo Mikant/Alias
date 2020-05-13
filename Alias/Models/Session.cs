@@ -144,13 +144,25 @@ namespace Alias.Models {
                 cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token);
                 _gameCancellationTokenSource = cancellationTokenSource;
 
-                var playersUnordered = _players.Items
+                var allPlayers = _players.Items
+                    .ToList();
+
+                var gameMaster = allPlayers
+                    .Single(x => x.IsGameMaster);
+
+                var activePlayers = allPlayers
                     .Where(Team.IsActive)
                     .ToList();
 
                 var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var client in playersUnordered)
-                    words.UnionWith(await client.GetWordsInteraction.Handle(Unit.Default).FirstOrDefaultAsync().ToTask(_gameCancellationTokenSource.Token));
+                foreach (var client in activePlayers) {
+                    var playerWords = await client.GetWordsInteraction
+                        .Handle(Unit.Default)
+                        .FirstOrDefaultAsync()
+                        .ToTask(_gameCancellationTokenSource.Token);
+
+                    words.UnionWith(playerWords.Take(MaximumWordCount));
+                }
                 words.RemoveWhere(string.IsNullOrWhiteSpace);
 
                 if (words.Count == 0)
@@ -159,7 +171,7 @@ namespace Alias.Models {
                 _teams.Edit(mutable => {
                     mutable.Clear();
                     mutable.AddOrUpdate(
-                        playersUnordered
+                        activePlayers
                             .Select(x => x.Team)
                             .Distinct()
                             .Select(x => new Team(x))
@@ -168,11 +180,11 @@ namespace Alias.Models {
 
                 var teams = _teams.Items.ToList();
 
-                var playerBuffer = playersUnordered.ToList();
+                var playerBuffer = activePlayers.ToList();
                 var playersOrdered = new List<Player>();
 
                 var teamIndex = 0;
-                for (int i = 0; i < playersUnordered.Count; i++) {
+                for (int i = 0; i < activePlayers.Count; i++) {
                     Player player = null;
                     while (player == null) {
                         var team = teams[teamIndex++ % teams.Count];
@@ -183,12 +195,12 @@ namespace Alias.Models {
                     playerBuffer.Remove(player);
                 }
 
-                GameMaster = playersUnordered.Single(x => x.IsGameMaster);
+                GameMaster = gameMaster;
                 PlayersOrdered = playersOrdered;
                 SourceWords = words.ToList();
 
-                for (int i = 0; !cancellationTokenSource.IsCancellationRequested; i++) {
-                    CurrentRound = new Round(this, i);
+                for (int roundIndex = 0; !cancellationTokenSource.IsCancellationRequested; roundIndex++) {
+                    CurrentRound = new Round(this, roundIndex);
 
                     if (!await CurrentRound.Run(cancellationTokenSource.Token))
                         break;
@@ -201,27 +213,27 @@ namespace Alias.Models {
                 GameMaster = null;
                 SourceWords = null;
 
+                NextPlayerIndex = 0;
+
                 CurrentRound = null;
             }
         }
 
-        [Reactive]
-        public IReadOnlyList<Player> PlayersOrdered { get; private set; }
-        [Reactive]
+        // "registry"
         public Player GameMaster { get; private set; }
-        [Reactive]
+        public IReadOnlyList<Player> PlayersOrdered { get; private set; }
         public IReadOnlyList<string> SourceWords { get; private set; }
+        public int NextPlayerIndex { get; set; }
+        public Team LookupTeam(int id) => _teams.Lookup(id).ValueOrDefault();
 
         [Reactive]
         public int MaximumTeamCount { get; private set; }
 
         [Reactive]
-        public Round CurrentRound { get; private set; }
-
-        public Team LookupTeam(int id) => _teams.Lookup(id).ValueOrDefault();
-
-        [Reactive]
         public byte MaximumWordCount { get; set; } = 5;
+        
+        [Reactive]
+        public Round CurrentRound { get; private set; }
 
         public void Cancel() {
             _gameCancellationTokenSource?.Dispose();
