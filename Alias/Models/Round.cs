@@ -31,7 +31,7 @@ namespace Alias.Models {
             var players = _session.PlayersOrdered;
             var words = _session.SourceWords.ToList();
 
-            int playerIndex = 0;
+            int playerIndex = _session.NextPlayerIndex;
             try {
                 while (words.Count > 0) {
                     var player = players[playerIndex++ % players.Count];
@@ -48,6 +48,7 @@ namespace Alias.Models {
                 }
             } finally {
                 CurrentRun = null;
+                _session.NextPlayerIndex = playerIndex;
             }
 
             return true;
