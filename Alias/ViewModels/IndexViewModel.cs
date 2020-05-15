@@ -164,6 +164,10 @@ namespace Alias.ViewModels {
             Player.IsGameMaster = false;
         }
 
+        public void Kick(Player player) {
+            player.LeaveSession();
+        }
+
         public string MaximumWordCountText {
             get => (Player?.Session.MaximumWordCount ?? 0).ToString();
             set {
