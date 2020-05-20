@@ -35,8 +35,6 @@ namespace Alias.ViewModels {
 
         public ObservableCollectionExtended<string> Words { get; } = new ObservableCollectionExtended<string>();
 
-        public Subject<bool> YesNoSignal { get; } = new Subject<bool>();
-
         public IndexViewModel(
             ProtectedLocalStorage localStorageService,
             GameService gameService
@@ -83,21 +81,14 @@ namespace Alias.ViewModels {
 
                 this.WhenAnyValue(x => x.Player)
                     .Where(x => x != null)
-                    .Select(x => {
-                        return new CompositeDisposable(
-                            x.GetWordsInteraction.RegisterHandler(interactionContext =>
-                                interactionContext.SetOutput(filterWords())
-                            ),
-                            x.YesNoInteraction.RegisterHandler(async interactionContext => {
-                                interactionContext.SetOutput(await YesNoSignal.FirstAsync().PublishLast());
-                            })
-                        );
-                    })
+                    .Select(x =>
+                        x.GetWordsInteraction.RegisterHandler(interactionContext =>
+                            interactionContext.SetOutput(filterWords())
+                        )
+                    )
                     .DisposeMany()
                     .Subscribe()
                     .DisposeWith(context);
-
-                YesNoSignal.DisposeWith(context);
 
                 Disposable.Create(() => Debug.WriteLine($"{nameof(IndexViewModel)} #{m_Index} Disposing"))
                     .DisposeWith(context);

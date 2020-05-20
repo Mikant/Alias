@@ -195,7 +195,7 @@
       <div class="row align-items-baseline">
         <div class="col-sm">
           @if (ViewModel.Player.IsGameMaster) {
-            <input value="Завершить игру" type="button" class="btn btn-warning btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+            <input value="Завершить игру" type="button" class="btn btn-warning btn-block" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(false))" />
           }
         </div>
 
@@ -208,7 +208,7 @@
 
         <div class="col-sm">
           @if (ViewModel.Player.IsGameMaster) {
-            <input value="Новый раунд" type="button" class="btn btn-success btn-block" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
+            <input value="Новый раунд" type="button" class="btn btn-success btn-block" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(true))" />
           }
         </div>
       </div>
@@ -267,19 +267,19 @@
           <div class="row">
             <div class="col-sm">
               @if (currentRun.IsRunning) {
-                <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase m-2" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+                <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase m-2" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(false))" />
               }
             </div>
 
             <div class="col-sm">
               @if (!currentRun.IsRunning) {
-                <input value="Начать" type="button" class="btn btn-warning btn-block text-uppercase m-2" @onclick="@(e => ViewModel.YesNoSignal.OnNext(false))" />
+                <input value="Начать" type="button" class="btn btn-warning btn-block text-uppercase m-2" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(false))" />
               }
             </div>
 
             <div class="col-sm">
               @if (currentRun.IsRunning) {
-                <input value="Следующее" type="button" class="btn btn-success btn-block text-uppercase m-2" @onclick="@(e => ViewModel.YesNoSignal.OnNext(true))" />
+                <input value="Следующее" type="button" class="btn btn-success btn-block text-uppercase m-2" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(true))" />
               }
             </div>
           </div>

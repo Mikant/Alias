@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace Alias.Models {
         public async Task Start(CancellationToken cancellationToken) {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            await Player.YesNoInteraction.Handle(Unit.Default).ToTask(_cancellationTokenSource.Token);
+            await Player.YesNoSignal.FirstAsync().ToTask(_cancellationTokenSource.Token);
 
             IsRunning = true;
             _startTime = DateTimeOffset.Now;
@@ -55,7 +56,7 @@ namespace Alias.Models {
                 while (!_cancellationTokenSource.IsCancellationRequested && _words.Count > 0 && TimeRemaining > TimeSpan.Zero) { // TimeRemaining is for BonusTime debounce
                     Word = PeekRandomWord();
 
-                    var accept = await Player.YesNoInteraction.Handle(Unit.Default).ToTask(_cancellationTokenSource.Token);
+                    var accept = await Player.YesNoSignal.FirstAsync().ToTask(_cancellationTokenSource.Token);
                     if (accept) {
                         _words.Remove(Word);
 

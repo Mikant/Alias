@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,7 @@ namespace Alias.Models {
         public async Task<bool> Run(CancellationToken token) {
             var roundCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token);
 
-            var start = await _session.GameMaster.YesNoInteraction.Handle(Unit.Default).ToTask(roundCancellationTokenSource.Token);
+            var start = await _session.GameMaster.YesNoSignal.FirstAsync().ToTask(roundCancellationTokenSource.Token);
             if (!start)
                 return false;
 
