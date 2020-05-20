@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reactive;
-using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
+using System.Reactive.Subjects;
 using System.Threading;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -37,7 +37,7 @@ namespace Alias.Models {
 
         public Interaction<Unit, string[]> GetWordsInteraction { get; } = new Interaction<Unit, string[]>();
 
-        public Interaction<Unit, bool> YesNoInteraction { get; } = new Interaction<Unit, bool>(TaskPoolScheduler.Default);
+        public Subject<bool> YesNoSignal { get; } = new Subject<bool>();
 
         public IDisposable GetConnectionToken() {
             Interlocked.Increment(ref _connections);

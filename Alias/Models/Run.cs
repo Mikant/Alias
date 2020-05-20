@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Alias.Models {
         private static readonly Random Random = new Random();
 
         private static readonly TimeSpan RunTime = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan BonusTime = TimeSpan.FromSeconds(4);
         private DateTimeOffset _startTime;
 
         private readonly List<string> _words;
@@ -44,17 +46,17 @@ namespace Alias.Models {
         public async Task Start(CancellationToken cancellationToken) {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            await Player.YesNoInteraction.Handle(Unit.Default).ToTask(_cancellationTokenSource.Token);
+            await Player.YesNoSignal.FirstAsync().ToTask(_cancellationTokenSource.Token);
 
             IsRunning = true;
             _startTime = DateTimeOffset.Now;
-            _cancellationTokenSource.CancelAfter(RunTime);
+            _cancellationTokenSource.CancelAfter(RunTime + BonusTime);
 
             try {
-                while (!_cancellationTokenSource.IsCancellationRequested && _words.Count > 0) {
+                while (!_cancellationTokenSource.IsCancellationRequested && _words.Count > 0 && TimeRemaining > TimeSpan.Zero) { // TimeRemaining is for BonusTime debounce
                     Word = PeekRandomWord();
 
-                    var accept = await Player.YesNoInteraction.Handle(Unit.Default).ToTask(_cancellationTokenSource.Token);
+                    var accept = await Player.YesNoSignal.FirstAsync().ToTask(_cancellationTokenSource.Token);
                     if (accept) {
                         _words.Remove(Word);
 
