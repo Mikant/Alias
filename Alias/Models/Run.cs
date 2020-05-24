@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
@@ -115,5 +114,7 @@ namespace Alias.Models {
 
             return _words[index];
         }
+
+        public int RemainingWordCount => _words.Count;
     }
 }

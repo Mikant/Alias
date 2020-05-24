@@ -113,7 +113,7 @@
               <input type="button"
                      class="btn btn-@GetBootstrapStyleForTeam(player.Team) btn-block"
                      value="@(player.Name)"
-                     style="color: @(player.IsGameMaster ? "red" : "black"); font-weight: @(player.Name == ViewModel.Username ? "bold" : "normal");"
+                     style="color: @(player.Name == ViewModel.Username ? "orangered" : "black"); font-weight: @(player.IsGameMaster ? "bold" : "normal");"
                      @onclick="@(e => ViewModel.DelegateAdminRights(player))"
                      @ondblclick="@(e => ViewModel.Kick(player))" />
             </div>
@@ -192,7 +192,7 @@
         <hr />
       }
 
-      <div class="row align-items-baseline">
+      <div class="row align-items-center">
         <div class="col-sm">
           @if (ViewModel.Player.IsGameMaster) {
             <input value="Завершить игру" type="button" class="btn btn-warning btn-block" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(false))" />
@@ -200,10 +200,7 @@
         </div>
 
         <div class="col-sm">
-          <p class="text-center text-uppercase">Ожидание</p>
-          @if (!ViewModel.Player.IsGameMaster) {
-            <p class="text-center text-uppercase">ведущего игрока</p>
-          }
+          <p class="text-center text-uppercase" style="margin: 0; padding: .375rem .75rem;">Ожидание@(ViewModel.Player.IsGameMaster ? string.Empty : " ведущего игрока")</p>
         </div>
 
         <div class="col-sm">
@@ -245,7 +242,7 @@
             }
           }
 
-          <h1 class="text-center" style="color: @(ViewModel.Player.Session.CurrentRound.CurrentRun.TimeRemaining == TimeSpan.Zero ? "red" : "black");">@(ViewModel.Player.Session.CurrentRound.CurrentRun.TimeRemaining.ToString("mm\\:ss"))</h1>
+          <h1 class="text-center">@(ViewModel.Player.Session.CurrentRound.CurrentRun.TimeRemaining.ToString("mm\\:ss"))</h1>
         </div>
       </div>
 
@@ -267,7 +264,7 @@
           <div class="row">
             <div class="col-sm">
               @if (currentRun.IsRunning) {
-                <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase m-2" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(false))" />
+                <input value="Пропуск" type="button" class="btn btn-danger btn-block text-uppercase m-2" @onclick="@(e => ViewModel.Player.YesNoSignal.OnNext(false))" disabled="@(currentRun.RemainingWordCount <= 1)" />
               }
             </div>
 
